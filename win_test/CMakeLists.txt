@@ -12,4 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_executable(test_static_exception test_static_exception.cpp)
+add_definitions(-D_CRT_NONSTDC_NO_WARNINGS)
+add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+add_definitions(-D_WINSOCK_DEPRECATED_NO_WARNINGS)
+
+add_executable(test_static_exception
+  test_static_exception.cpp
+  ../include/exception_memory_pool.hpp
+  ../include/unwind-cxx.h)
