@@ -27,7 +27,9 @@ set(CMAKE_CXX_STANDARD 14)
 
 
 include_directories(include)
-add_subdirectory(test)
 
-
-
+if(WIN32)
+  add_subdirectory(win_test)
+else()
+  add_subdirectory(test)
+endif()
