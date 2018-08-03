@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+find_package(OpenMP REQUIRED)
 add_executable(parallel_test
   parallel_test_static_exception.cpp
   ../include/exception_memory_pool.hpp
@@ -23,5 +24,7 @@ if(WIN32)
   add_definitions(-D_WINSOCK_DEPRECATED_NO_WARNINGS)
   target_compile_options(parallel_test PRIVATE "/openmp" "/Oi" "/arch:AVX2" "/Oy")
 else()
-  target_compile_options(parallel_test PRIVATE "--std=c++11" "-fopenmp" "-lpthread" "-O3")
+  target_compile_options(parallel_test PRIVATE "--std=c++11" "-O3")
+  target_link_libraries(parallel_test PRIVATE "${OpenMP_CXX_FLAGS}")
+  target_compile_options(parallel_test PRIVATE "${OpenMP_CXX_FLAGS}")
 endif()

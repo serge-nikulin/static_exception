@@ -55,14 +55,20 @@ static void test_function(uint32_t max_allocs_per_thread, uint32_t alloc_size)
 
 int main()
 {
-  uint32_t max_allocs_per_thread = EXCEPTION_MEMORY__CXX_POOL_SIZE / omp_get_max_threads();
+  uint32_t max_threads = omp_get_max_threads();
+  if (0U == max_threads) {
+    max_threads = 1U;
+  }
+  printf("max_threads: %u\n", max_threads);
+
+  uint32_t max_allocs_per_thread = EXCEPTION_MEMORY__CXX_POOL_SIZE / max_threads;
   printf("max_allocs_per_thread: %u\n", max_allocs_per_thread);
 
   const uint32_t alloc_size = EXCEPTION_MEMORY__CXX_MAX_EXCEPTION_SIZE - sizeof(__cxxabiv1::__cxa_refcounted_exception);
   printf("alloc_size: %u\n", alloc_size);
 
 #pragma omp parallel for
-  for (int64_t i = 0; i < omp_get_max_threads(); ++i) {
+  for (int64_t i = 0; i < max_threads; ++i) {
     test_function(max_allocs_per_thread, alloc_size);
   }
 
