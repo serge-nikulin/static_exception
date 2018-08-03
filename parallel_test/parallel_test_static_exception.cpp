@@ -22,10 +22,11 @@ namespace __cxxabiv1
 
 static std::atomic<uint64_t> g_total_count;
 
-static void test_function(uint32_t max_allocs_per_thread, uint32_t alloc_size)
+static void test_function(int32_t tid, uint32_t max_allocs_per_thread, uint32_t alloc_size)
 {
   std::array<void *, EXCEPTION_MEMORY__CXX_POOL_SIZE> allocated_pointers;
   std::vector<uint8_t> expected_sig(alloc_size);
+  memset(&expected_sig[0U], tid, alloc_size);
 
   for (;;) {
     for (uint32_t i = 0; i < max_allocs_per_thread; ++i) {
@@ -34,12 +35,10 @@ static void test_function(uint32_t max_allocs_per_thread, uint32_t alloc_size)
         printf("__cxa_allocate_exception failed\n");
         exit(1);
       } else {
-        memset(allocated_pointers[i], i & 0xFF, alloc_size);
+        memset(allocated_pointers[i], tid, alloc_size);
       }
     }
-
     for (uint32_t i = 0; i < max_allocs_per_thread; ++i) {
-      memset(&expected_sig[0U], (i & 0xFF), alloc_size);
       if (memcmp(allocated_pointers[i], &expected_sig[0U], alloc_size) != 0) {
         printf("memcmp failed\n");
         exit(1);
@@ -68,8 +67,8 @@ int main()
   printf("alloc_size: %u\n", alloc_size);
 
 #pragma omp parallel for
-  for (int64_t i = 0; i < max_threads; ++i) {
-    test_function(max_allocs_per_thread, alloc_size);
+  for (int32_t tid = 0U; tid < int32_t(max_threads); ++tid) {
+    test_function(tid, max_allocs_per_thread, alloc_size);
   }
 
   return 0;
