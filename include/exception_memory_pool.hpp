@@ -21,16 +21,13 @@
 #include <thread>
 #ifdef __GNUC__
 #include <cxxabi.h>
-
 // This file is copied over from GCC to provide size information. No logic of it is used.
 #include "unwind-cxx.h"
-
+#define alligned_free free
 #if __GNUC__==5 && __GNUC_MINOR__==4 && __GNUC_PATCHLEVEL__==0
 #else
 #error Unsupported GCC version. Required version is __GNUC__.__GNUC_MINOR__.__GNUC_PATCHLEVEL__.
 #endif
-#else
-// #error Unsupported compiler. Only GCC is supported.
 #endif
 
 #ifndef EXCEPTION_MEMORY__CXX_MAX_EXCEPTION_SIZE
@@ -38,19 +35,19 @@
  * uses a small header, so the effective available size for the exception object is slightly
  * smaller. If a larger exception is thrown std::terminate is called.
  */
-#define EXCEPTION_MEMORY__CXX_MAX_EXCEPTION_SIZE (1024)
+#define EXCEPTION_MEMORY__CXX_MAX_EXCEPTION_SIZE 1024
 #endif
 
 #ifndef EXCEPTION_MEMORY__CXX_POOL_SIZE
  /** Maximal number of supported exceptions concurrently in flight over all threads. If the number
   *  of exceptions exceeds this limit std::terminate is called.
   */
-#define EXCEPTION_MEMORY__CXX_POOL_SIZE (64*128)
+#define EXCEPTION_MEMORY__CXX_POOL_SIZE 64*128
 #endif
 
 #ifndef EXCEPTION_MEMORY__CXX_POOL_ALIGNMENT
   /// Alignment of the allocated memory pool blocks.
-#define EXCEPTION_MEMORY__CXX_POOL_ALIGNMENT (8)
+#define EXCEPTION_MEMORY__CXX_POOL_ALIGNMENT 8
 #endif
 
 #ifdef EXCEPTION_MEMORY___CXX_LOG_MEMORY_POOL
@@ -64,7 +61,8 @@ namespace exception_memory {
      *  \param thrown_size The requested memory size.
      *  \return A pointer to some additional memory.
      */
-    extern "C" void* exception_memory_pool_exhausted(const size_t thrown_size) {
+    extern "C" void* exception_memory_pool_exhausted(const size_t thrown_size)
+    {
       std::terminate();
       return nullptr;
     }
@@ -74,7 +72,8 @@ namespace exception_memory {
      *  \param thrown_size The requested memory size.
      *  \return A pointer to some additional memory.
      */
-    extern "C" void* exception_too_large(const size_t thrown_size) {
+    extern "C" void* exception_too_large(const size_t thrown_size)
+    {
       std::terminate();
       return nullptr;
     }
@@ -82,7 +81,8 @@ namespace exception_memory {
     /** Overridable function to specify behaviour if the memory pool detects an memory leak. By
      *  default this function calls std::terminate.
      */
-    extern "C" void exception_memory_pool_leak() {
+    extern "C" void exception_memory_pool_leak()
+    {
       std::terminate();
     }
 
@@ -108,9 +108,10 @@ namespace exception_memory {
         }
       }
 
-      inline ~ExceptionMemoryPool() noexcept {
+      inline ~ExceptionMemoryPool() noexcept
+      {
         for (auto &elem : m_pool) {
-          free(elem.second);
+          alligned_free(elem.second);
         }
       }
 
@@ -119,7 +120,8 @@ namespace exception_memory {
         * exception_memory_pool_exhausted is called.
         * \return Pointer to the allocated memory block.
        */
-      inline void *allocate(const size_t thrown_size) noexcept {
+      inline void *allocate(const size_t thrown_size) noexcept
+      {
         if (thrown_size > max_exception_size) {
 #ifdef EXCEPTION_MEMORY___CXX_LOG_MEMORY_POOL
           std::cerr << "Exception too large." << std::endl;
@@ -147,7 +149,8 @@ namespace exception_memory {
       /** Deallocates \param thrown_object from the pool. If the memory did not originate from this
        *  memory pool exception_memory_pool_leak() is called.
        */
-      inline void deallocate(void *thrown_object) noexcept {
+      inline void deallocate(void *thrown_object) noexcept
+      {
         auto idx = inc_idx(start_idx());
         while (idx != start_idx()) {
           auto& elem = m_pool[idx];
@@ -169,15 +172,14 @@ namespace exception_memory {
       /** WARNING: This function is not thread safe! Only use it for testing!
        *  \return The number of used segments in the memory pool.
        */
-      inline std::size_t used_segments() noexcept {
+      inline std::size_t used_segments() noexcept
+      {
         std::size_t counter = std::size_t();
-        for (auto& elem : m_pool)
-        {
+        for (auto& elem : m_pool) {
           auto orig = elem.first.test_and_set();
           if (orig) {
             ++counter;
-          }
-          else {
+          } else {
             elem.first.clear();
           }
         }
@@ -185,7 +187,8 @@ namespace exception_memory {
       }
 
       /// \returns if \param vptr was allocated from this memory pool.
-      inline bool is_allocated_by_this_pool(void *vptr) const noexcept {
+      inline bool is_allocated_by_this_pool(void *vptr) const noexcept
+      {
         void *ptr = (char *)vptr - sizeof(__cxxabiv1::__cxa_refcounted_exception);
         bool ret = false;
         for (const auto& elem : m_pool) {
@@ -198,7 +201,8 @@ namespace exception_memory {
       std::array <std::pair<std::atomic_flag, void *>, pool_size> m_pool;
 
       /// \return The thread specific start of where to look for a free memory segment.
-      std::size_t start_idx() const noexcept {
+      std::size_t start_idx() const noexcept
+      {
         static const auto hasher = std::hash<std::thread::id>();
         static const thread_local std::size_t t =
           hasher(std::this_thread::get_id()) % pool_size; // const (threadsafe) nothrow operation
@@ -206,11 +210,11 @@ namespace exception_memory {
       }
 
       /// \return \param idx increased by 1 modulo pool_size.
-      std::size_t inc_idx(const std::size_t idx) const noexcept {
+      std::size_t inc_idx(const std::size_t idx) const noexcept
+      {
         if (idx + 1 == pool_size) {
           return 0;
-        }
-        else {
+        } else {
           return idx + 1;
         }
       }
@@ -273,11 +277,13 @@ extern "C" void __cxa_free_exception(void *thrown_object)
   exception_memory::__cxx::cxa_free_exception(thrown_object);
 }
 
-extern "C" __cxxabiv1::__cxa_dependent_exception * __cxa_allocate_dependent_exception() {
+extern "C" __cxxabiv1::__cxa_dependent_exception * __cxa_allocate_dependent_exception()
+{
   return static_cast<__cxxabiv1::__cxa_dependent_exception*>(exception_memory::__cxx::cxa_allocate_dependent_exception());
 }
 
-extern "C" void __cxa_free_dependent_exception(__cxxabiv1::__cxa_dependent_exception * dependent_exception) {
+extern "C" void __cxa_free_dependent_exception(__cxxabiv1::__cxa_dependent_exception * dependent_exception)
+{
   exception_memory::__cxx::cxa_free_dependent_exception(dependent_exception);
 }
 

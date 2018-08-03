@@ -12,11 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_definitions(-D_CRT_NONSTDC_NO_WARNINGS)
-add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-add_definitions(-D_WINSOCK_DEPRECATED_NO_WARNINGS)
-
-add_executable(test_static_exception
-  test_static_exception.cpp
+add_executable(parallel_test
+  parallel_test_static_exception.cpp
   ../include/exception_memory_pool.hpp
   ../include/unwind-cxx.h)
+
+if(WIN32)
+  add_definitions(-D_CRT_NONSTDC_NO_WARNINGS)
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+  add_definitions(-D_WINSOCK_DEPRECATED_NO_WARNINGS)
+  target_compile_options(parallel_test PRIVATE "/openmp" "/Oi" "/arch:AVX2" "/Oy")
+else()
+  target_compile_options(parallel_test PRIVATE "--std=c++11" "-fopenmp" "-lpthread" "-O3")
+endif()
